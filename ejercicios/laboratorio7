@@ -1,0 +1,69 @@
+1. ¿Qué diferencia existe entre servidor, esquema, cuenta SQL y modelo Django?
+
+Servidor (DBMS): El software o proceso en ejecución (como MariaDB o MySQL) que gestiona el almacenamiento, los recursos del sistema y las conexiones a las bases de datos.
+
+Esquema (Base de datos): El contenedor lógico dentro del servidor (por ejemplo, classroom_hub) donde residen las tablas, vistas, índices y datos específicos del proyecto.
+
+Cuenta SQL: El usuario creado a nivel de base de datos con credenciales y privilegios asignados (ej. SELECT, INSERT, UPDATE) para operar de forma segura dentro de uno o varios esquemas.
+
+Modelo Django: Una clase en Python (models.Model) que define la estructura de una tabla, sus tipos de datos, restricciones y relaciones dentro del código de la aplicación.
+
+2. ¿Por qué MariaDB utiliza el backend django.db.backends.mysql?
+MariaDB nació como una bifurcación directa (fork) de MySQL y mantiene una estricta compatibilidad a nivel de protocolo de red, tipos de datos y sintaxis SQL estándar. Django aprovecha esta compatibilidad utilizando el mismo backend (django.db.backends.mysql) y el driver mysqlclient para interactuar con ambos motores de forma transparente.
+
+3. ¿Para qué sirven .env y .env.example?
+
+.env: Archivo local donde se definen las variables de entorno con los valores reales del entorno de ejecución (contraseñas, claves secretas SECRET_KEY, credenciales de BD). Nunca debe subirse al control de versiones (Git).
+
+.env.example: Archivo plantilla de referencia que sí se versiona en Git. Contiene los nombres de todas las variables requeridas por el proyecto con valores ficticios o explicativos, permitiendo que cualquier desarrollador configure su propio .env al clonar el repositorio.
+
+4. ¿Qué hacen makemigrations y migrate, y por qué no son intercambiables?
+
+makemigrations: Lee los modelos en Python, detecta cambios frente al estado actual y genera archivos de migración (código Python dentro de migrations/) que describen las modificaciones necesarias. No toca la base de datos.
+
+migrate: Lee las migraciones pendientes y ejecuta las sentencias SQL reales (CREATE TABLE, ALTER TABLE, etc.) contra el esquema de base de datos conectado.
+
+No son intercambiables porque representan fases distintas: una planifica y documenta los cambios estructurales en código; la otra los aplica físicamente sobre el motor de datos.
+
+5. ¿Qué guarda la columna category_id?
+Guarda el valor de la clave primaria (PRIMARY KEY, normalmente un entero) del registro correspondiente en la tabla category. Es la clave foránea (FOREIGN KEY) física que mantiene la integridad referencial y permite enlazar cada recurso con su categoría correspondiente.
+
+6. ¿Qué diferencia hay entre all(), filter() y get()?
+
+all(): Devuelve un QuerySet con todos los registros existentes de la tabla.
+
+filter(**kwargs): Devuelve un QuerySet que contiene únicamente los registros que coinciden con los criterios de búsqueda (puede retornar ninguno, uno o varios).
+
+get(**kwargs): Devuelve directamente una única instancia del modelo. Lanza la excepción DoesNotExist si no encuentra resultados o MultipleObjectsReturned si encuentra más de uno.
+
+7. ¿Por qué save() es necesario para guardar cambios de una instancia modificada?
+Cuando se alteran los atributos de un objeto en Python (recurso.title = "Nuevo"), la modificación existe únicamente en la memoria RAM del proceso de la aplicación. Llamar a .save() le indica al ORM que compile y ejecute la sentencia SQL UPDATE (o INSERT si es nuevo) contra la base de datos para persistir el cambio.
+
+8. ¿Qué protege on_delete=models.PROTECT?
+Evita la eliminación accidental de un registro padre si todavía existen registros hijos asociados a él. Si se intenta borrar una categoría que tiene recursos vinculados, Django intercepta la acción y lanza un error ProtectedError, impidiendo que los recursos queden huérfanos o se borren en cascada.
+
+9. ¿Qué hace select_related("category")?
+Realiza una consulta SQL optimizada mediante un INNER JOIN (o LEFT OUTER JOIN), trayendo en una sola sentencia tanto los datos del modelo principal como los de la relación de clave foránea. Esto evita el problema de las consultas N+1, donde acceder a recurso.category.name en un bucle dispararía una consulta SQL individual por cada fila.
+
+10. ¿Qué distingue a Django Admin de una interfaz pública?
+
+Django Admin: Es una consola prediseñada orientada a personal interno, operadores o administradores para realizar tareas CRUD directas sobre los modelos, con autenticación estricta, permisos basados en roles y poco foco en diseño personalizado.
+
+Interfaz pública: Son las vistas diseñadas a medida (HTML/CSS/JS o APIs REST) para los usuarios finales del sistema, donde la experiencia de usuario (UX), el diseño visual y las reglas de negocio específicas están desacopladas de la estructura cruda de la base de datos.
+
+11. ¿Por qué las pruebas usan TestCase y una base distinta?TestCase crea una base de datos temporal y aislada (por defecto prefijada con test_), ejecuta las migraciones desde cero y envuelve cada prueba individual dentro de una transacción atómica que se revierte (ROLLBACK) al finalizar. Esto garantiza:
+
+Aislamiento: Ninguna prueba ensucia a la siguiente.
+
+Seguridad: Los datos reales de desarrollo o producción no se corrompen ni eliminan durante la ejecución de los tests.
+
+12. ¿Qué deberías agregar para permitir que una persona cree recursos desde la propia página web?
+Se requiere el flujo estándar de formularios de Django:
+
+Formulario: Crear un ModelForm (ResourceForm) en forms.py vinculado al modelo Resource.
+
+Vista: Una vista (función o basada en clases como CreateView) que procese peticiones GET (mostrar el formulario vacío) y POST (validar datos con form.is_valid(), persistir con form.save() y redirigir).
+
+Plantilla (Template): Un archivo HTML con la etiqueta <form method="post">, la directiva de seguridad {% csrf_token %}, el renderizado de los campos ({{ form.as_p }}) y un botón de envío.
+
+Enrutamiento (URL): Registrar el path correspondiente en urls.py.
